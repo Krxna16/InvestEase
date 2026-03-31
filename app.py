@@ -13,7 +13,7 @@ import visualization as viz
 
 # --- CONFIGURATION ---
 st.set_page_config(
-    page_title="Local Stock Portfolio Evaluator",
+    page_title="InvestEase",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -425,7 +425,7 @@ PAGES = {
 
 # Add custom project header at the top of the sidebar
 st.sidebar.markdown(
-    "<h1 style='text-align: center; font-size: 24px; color: #4CAF50;'>📊 LOCAL PORTFOLIO TRACKER</h1>", 
+    "<h1 style='text-align: center; font-size: 24px; color: #4CAF50;'>📊 InvestEase</h1>", 
     unsafe_allow_html=True
 )
 st.sidebar.markdown("---") 

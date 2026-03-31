@@ -1,4 +1,4 @@
-#!/Users/krishna/Desktop/Python Project/stock_portfolio_tool/venv/bin/python3
+#!/Users/krishna/Desktop/Stock Portfolio Evaluation Tool/stock_portfolio_tool/venv/bin/python3
 # -*- coding: utf-8 -*-
 # Copyright 2025 Google LLC
 #

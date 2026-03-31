@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/krishna/Desktop/Python Project/stock_portfolio_tool/venv"
+VIRTUAL_ENV="/Users/krishna/Desktop/Stock Portfolio Evaluation Tool/stock_portfolio_tool/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
