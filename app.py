@@ -53,7 +53,8 @@ def fetch_and_calculate_portfolio(holdings_df_json):
     """
     Fetches live data and performs all necessary calculations, including sector data.
     """
-    holdings_df = pd.read_json(holdings_df_json)
+    import io
+    holdings_df = pd.read_json(io.StringIO(holdings_df_json))
     
     perf_df, summary, cumulative_growth_df, metrics, benchmark_df = pd.DataFrame(), {}, pd.DataFrame(), {}, pd.DataFrame()
     stock_betas = {}
