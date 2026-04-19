@@ -1,4 +1,5 @@
 import os
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
@@ -11,6 +12,13 @@ load_dotenv()
 
 # Get Database URL and handle Render format mapping bridging postgres:// to postgresql://
 raw_db_url = os.getenv("DATABASE_URL")
+
+# Provide fallback for Streamlit Secrets
+if not raw_db_url:
+    try:
+        raw_db_url = st.secrets["DATABASE_URL"]
+    except Exception:
+        pass
 
 if not raw_db_url:
     raise ValueError("DATABASE_URL environment variable is not set. Please configure it or a .env file locally.")

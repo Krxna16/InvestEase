@@ -5,4 +5,7 @@ yfinance
 plotly
 scipy
 scikit-learn
-firebase-admin
+sqlalchemy
+psycopg2-binary
+python-dotenv
+bcrypt
