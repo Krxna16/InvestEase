@@ -2,7 +2,10 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from scipy.stats import gmean
-from sklearn.linear_model import LinearRegression 
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
 
 RISK_FREE_RATE = 0.03 
 
@@ -218,30 +221,131 @@ def calculate_time_series_metrics(holdings_df, historical_df):
     
     return metrics, cumulative_returns_df
 
+def evaluate_models(X_train, y_train, X_test, y_test):
+    """Evaluates Linear Regression and Random Forest models natively resolving RMSE and R2 parameters."""
+    # Linear Regression
+    lr_model = LinearRegression()
+    lr_model.fit(X_train, y_train)
+    lr_preds = lr_model.predict(X_test)
+    lr_rmse = np.sqrt(mean_squared_error(y_test, lr_preds))
+    lr_r2 = r2_score(y_test, lr_preds)
+    
+    # Random Forest Regressor (Anti-overfit bounds adjusted for deeper pattern recognition)
+    rf_model = RandomForestRegressor(n_estimators=150, max_depth=10, min_samples_split=5, random_state=42)
+    rf_model.fit(X_train, y_train)
+    rf_preds = rf_model.predict(X_test)
+    rf_rmse = np.sqrt(mean_squared_error(y_test, rf_preds))
+    rf_r2 = r2_score(y_test, rf_preds)
+    
+    return {
+        "Linear Regression": {"rmse": lr_rmse, "r2": lr_r2, "model": lr_model},
+        "Random Forest": {"rmse": rf_rmse, "r2": rf_r2, "model": rf_model}
+    }
+
 def predict_stock_growth(cumulative_returns_df, days_to_predict=30, historical_window=60):
-    """Performs a basic linear regression forecast on the cumulative returns."""
+    """
+    Performs time-series aware evaluation against dual regression models yielding structured prediction datasets conditionally.
+    """
     if cumulative_returns_df.empty or len(cumulative_returns_df) < historical_window:
-        return pd.DataFrame()
+        return {}
 
     data = cumulative_returns_df.tail(historical_window).copy()
-    data['Days'] = np.arange(len(data))
-    X = data[['Days']].values
+    
+    # Feature Engineering strictly isolated to prior data to prevent structural data leakage
+    data['lag_1'] = data['Cumulative_Growth'].shift(1)
+    data['lag_2'] = data['Cumulative_Growth'].shift(2)
+    data['lag_3'] = data['Cumulative_Growth'].shift(3)
+    
+    data['returns'] = data['Cumulative_Growth'].pct_change().shift(1)
+    data['rolling_mean'] = data['Cumulative_Growth'].rolling(window=5).mean().shift(1)
+    data['volatility_5'] = data['Cumulative_Growth'].rolling(window=5).std().shift(1)
+    data['momentum'] = data['Cumulative_Growth'].shift(1) - data['Cumulative_Growth'].shift(3)
+    
+    data = data.dropna()
+    if len(data) < 20:  # Failsafe if data is extremely disjointed
+        return {}
+        
+    X = data[['lag_1', 'lag_2', 'lag_3', 'rolling_mean', 'returns', 'volatility_5', 'momentum']].values
     y = data['Cumulative_Growth'].values
 
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    last_day_index = data['Days'].iloc[-1]
-    future_days = np.arange(last_day_index + 1, last_day_index + 1 + days_to_predict).reshape(-1, 1)
+    # Time-series aware split (80/20 configuration avoiding randomized leakage)
+    split_idx = int(len(X) * 0.8)
+    X_train, X_test = X[:split_idx], X[split_idx:]
+    y_train, y_test = y[:split_idx], y[split_idx:]
 
-    predicted_growth = model.predict(future_days)
-    
+    try:
+        evaluation_results = evaluate_models(X_train, y_train, X_test, y_test)
+    except Exception as e:
+        print(f"DEBUG: Model configuration failed: {e}")
+        return {}
+
+    best_model_name = "Random Forest" if evaluation_results["Random Forest"]["rmse"] < evaluation_results["Linear Regression"]["rmse"] else "Linear Regression"
+
     last_date = data['Date'].iloc[-1]
     prediction_dates = pd.date_range(start=last_date, periods=days_to_predict + 1, freq='B')[1:]
     
-    prediction_df = pd.DataFrame({
-        'Date': prediction_dates,
-        'Cumulative_Growth': predicted_growth
-    })
+    output_payload = {
+        "best_model": best_model_name,
+        "metrics": evaluation_results
+    }
     
-    return prediction_df
+    # Generate explicit forecast vectors bound to retrained contexts spanning the FULL dataset
+    for model_name, metrics in evaluation_results.items():
+        # Retrain strictly on complete historical data for valid extrapolation
+        final_model = LinearRegression() if model_name == "Linear Regression" else RandomForestRegressor(n_estimators=150, max_depth=10, min_samples_split=5, random_state=42)
+        final_model.fit(X, y)
+        
+        predicted_growth = []
+        current_y = y[-1]
+        y_window = list(data['Cumulative_Growth'].values[-10:])
+        
+        # Autoregressive extrapolation recursively maintaining feature architecture into unknowns
+        for i in range(days_to_predict):
+            f_lag_1 = y_window[-1]
+            f_lag_2 = y_window[-2]
+            f_lag_3 = y_window[-3]
+            f_returns = (y_window[-1] - y_window[-2]) / y_window[-2] if y_window[-2] != 0 else 0
+            f_mean = np.mean(y_window[-5:])
+            f_volatility = np.std(y_window[-5:], ddof=1) if len(y_window) >= 5 else 0
+            f_momentum = y_window[-1] - y_window[-3]
+            
+            features_t = [f_lag_1, f_lag_2, f_lag_3, f_mean, f_returns, f_volatility, f_momentum]
+            
+            next_y = final_model.predict([features_t])[0]
+            
+            # Injecting realistic simulated market noise
+            raw_noise = np.random.normal(0, f_volatility * 0.3 if f_volatility > 0 else 0.005)
+            # Apply dynamic clipping directly limiting erratic standard variation explosions
+            cap_limit = f_volatility * 2 if f_volatility > 0 else 0.015
+            noise = np.clip(raw_noise, -cap_limit, cap_limit)
+            next_y += noise
+            
+            # Stabilize Linear Regression prediction to prevent exponential explosion
+            if model_name == "Linear Regression":
+                max_val = current_y * 1.05
+                min_val = current_y * 0.95
+                next_y = max(min_val, min(next_y, max_val))
+                
+            predicted_growth.append(next_y)
+            y_window.append(next_y)
+            y_window.pop(0)  # Keep window length 10
+            current_y = next_y
+            
+        predicted_growth = np.array(predicted_growth)
+        
+        # Calculate isolated historical volatility dynamically tracking pct shifts vs absolute sizes
+        historical_volatility = np.std(data['Cumulative_Growth'].pct_change().dropna()) if len(data) > 0 else 0.02
+        time_steps = np.arange(1, days_to_predict + 1)
+        
+        # Proper scaling: Confidence Bound geometrically expands independently along volatility loops
+        cumulative_uncertainty = historical_volatility * np.sqrt(time_steps)
+        
+        prediction_df = pd.DataFrame({
+            'Date': prediction_dates,
+            'Cumulative_Growth': predicted_growth,
+            'Upper_Bound': predicted_growth + cumulative_uncertainty,
+            'Lower_Bound': predicted_growth - cumulative_uncertainty
+        })
+        output_payload[model_name] = prediction_df
+        
+    return output_payload

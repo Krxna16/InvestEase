@@ -104,6 +104,27 @@ def create_prediction_line_chart(historical_df, prediction_df):
         line=dict(color='#00Ffa3', width=2, dash='dot')
     ))
 
+    if 'Upper_Bound' in prediction_df.columns and 'Lower_Bound' in prediction_df.columns:
+        last_hist_val = historical_df['Cumulative_Growth'].iloc[-1]
+        bound_dates = pd.concat([historical_df.tail(1)['Date'], prediction_df['Date']])
+        
+        upper_bound = pd.concat([pd.Series([last_hist_val]), prediction_df['Upper_Bound']])
+        lower_bound = pd.concat([pd.Series([last_hist_val]), prediction_df['Lower_Bound']])
+        
+        # Hidden upper bound tracking line
+        fig.add_trace(go.Scatter(
+            x=bound_dates, y=upper_bound,
+            mode='lines', line=dict(width=0), showlegend=False, hoverinfo='skip'
+        ))
+        
+        # Lower bound drawing up to Upper capturing expanding shaded volume
+        fig.add_trace(go.Scatter(
+            x=bound_dates, y=lower_bound,
+            mode='lines', line=dict(width=0),
+            fill='tonexty', fillcolor='rgba(0, 255, 163, 0.15)',
+            name='Confidence Interval', hoverinfo='skip'
+        ))
+
     fig.update_layout(
         template='plotly_dark',
         paper_bgcolor='rgba(0,0,0,0)',
@@ -112,7 +133,8 @@ def create_prediction_line_chart(historical_df, prediction_df):
         xaxis=dict(title="Date", showgrid=False, zeroline=False),
         yaxis=dict(title="Growth Factor", showgrid=False, zeroline=False),
         hovermode="x unified",
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        margin=dict(t=80, b=20, l=20, r=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
     )
     return fig
 
