@@ -1,53 +1,114 @@
-# InvestEase
+# 🚀 InvestEase
+A production-ready, multi-user stock portfolio forecasting and tracking platform.
 
-**InvestEase** is a production-ready, multi-user web application for tracking and forecasting stock portfolios. Built with a modern, interactive interface, it provides users with real-time financial data, risk-adjusted performance metrics, and automated portfolio predictions.
+---
 
-## 🚀 Key Highlights
-- **Multi-Tenant System:** Securely isolated user sessions with portfolios filtered reliably by `user_id`.
-- **Production Database:** Uses **PostgreSQL** deployed via Render with **SQLAlchemy** ORM and connection pooling for scalable, efficient queries.
-- **Secure Authentication:** Implements stateless **Bcrypt** cryptographic password hashing with secure environment credential loading targeting Cloud deployments.
-- **Quantitative Analytics:** Automatically computes portfolio risk measures (Sharpe Ratio, Volatility) and stock beta against live S&P500 baselines.
+## 🌐 Live Demo
+🔗 [Experience InvestEase Live](https://your-app-link.streamlit.app)
 
-## 📈 Core Features
-- **Secure Accounts:** Clean and robust login/registration flows.
-- **Real-Time Data:** Automated market data synchronization using `yfinance`.
-- **Growth Forecasting:** 30-day linear regression modeling based on historical portfolio growth rates.
-- **Interactive Dashboards:** Dynamic sector distributions and financial timelines rendered dynamically via Plotly.
-- **Flexible Management:** Full portfolio CRUD operations with CSV import/export capabilities.
+---
 
-## 🧰 Tech Stack
-- **Frontend & Routing:** Streamlit
-- **Backend Database:** PostgreSQL, SQLAlchemy
-- **Security & Config:** Bcrypt, Python-dotenv
-- **Financial APIs:** Yahoo Finance (`yfinance`)
-- **Data Science:** Pandas, NumPy, Scikit-Learn, SciPy
-- **Data Visualization:** Plotly
+## ⚡ Key Highlights
+* **Multi-User Architecture:** Fully separated and secure user environments.
+* **PostgreSQL Backend:** Centralized, persistent database handling structured asset relationships.
+* **ML Forecasting System:** Evaluates data natively utilizing Linear Regression and Random Forest models.
+* **Authentication Security:** Secure, salted bcrypt password hashing protocols.
+* **Interactive UI:** Smooth, highly intuitive interfaces engineered entirely in Streamlit.
+
+---
+
+## ✨ Features
+
+### Authentication
+* Secure registration and login mechanics.
+* Environment isolation preventing cross-account data leaks.
+
+### Portfolio Management
+* Complete CRUD management for individual stock holdings.
+* Automated CSV import/export tooling.
+* Live asset valuations ingested dynamically via `yfinance`.
+
+### Financial Analytics
+* Holistic portfolio metrics tracking Cost Basis to Current Value.
+* Volatility indicators and risk-adjusted Sharpe Ratios.
+* Automatic sector breakdown and distribution aggregation.
+
+### Forecasting
+* Built-in 30-day algorithmic trend extrapolation.
+* Auto-selection across multiple regression algorithms based on data variance.
+* Visual display of prediction metrics tracking historic trends natively against projections.
+
+### Visualization
+* Dynamic Plotly growth charts mirroring the S&P 500 equivalent values.
+* High-visibility tracking envelopes eliminating metric overlap constraints.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** Streamlit 
+* **Backend:** PostgreSQL, SQLAlchemy
+* **ML / Data Science:** Scikit-Learn, Pandas, NumPy
+* **Visualization:** Plotly
+* **API:** yfinance
+
+---
 
 ## 🏗️ Architecture Overview
-The application follows a standard three-tier architecture. **Streamlit** handles all UI and stateful frontend routing. The data processing layer aggregates live financial inputs and runs predictive statistical models isolated per user. Finally, all persistent state is maintained across a pooled **PostgreSQL** connection, entirely eliminating vulnerable local file storage and ensuring reliable scalability.
+
+InvestEase relies on a clean 3-tier architecture separating the underlying database from the client presentation layer. Streamlit routes authenticated users into encrypted sessions, loading purely segmented data pulled via SQLAlchemy's ORM out of PostgreSQL. Core ML routing parses this segmented structural data natively into isolated memory stacks, completely insulating predictions between multi-tenant interactions. 
+
+---
+
+## 🧠 Machine Learning Approach
+
+* **Lag-Based Features:** Strict time-series offsets preserving structural integrity and blocking future data leakage.
+* **Time-Series Split:** Historical chronologies separate testing from training inherently matching real-world conditions.
+* **Model Comparison:** Algorithm natively assesses `Linear Regression` and `Random Forest` models, activating the historically best route against short-term trends.
+* **Rigorous Evaluation:** Precision measured reliably using standard RMSE and robust R² percentage benchmarks.
+* **Volatility-Based Intervals:** Dynamic upper and lower prediction envelopes shaped proportionally over expected timeframes utilizing $\sigma \sqrt{t}$.
+
+---
 
 ## ⚙️ Setup Instructions
 
-**1. Clone & Install Dependencies**
+**1. Clone the repository:**
 ```bash
-git clone https://github.com/Krxna16/stock-portfolio-tool.git
-cd stock-portfolio-tool
-python -m venv venv
-source venv/bin/activate
+git clone https://github.com/your-username/InvestEase.git
+cd InvestEase
+```
+
+**2. Install requirements:**
+```bash
 pip install -r requirements.txt
 ```
 
-**2. Configure Environment**
-Create a `.env` file in the root directory and map your PostgreSQL instance:
+**3. Configure Environment:**
+Establish a root `.env` document pointing your system securely to a running database:
 ```env
-DATABASE_URL=postgresql://user:password@hostname:5432/dbname
+DATABASE_URL=postgresql://username:password@localhost:5432/investease
 ```
 
-**3. Launch the Application**
+**4. Launch Application:**
 ```bash
 streamlit run app.py
 ```
-*(The application will construct required SQL tables automatically upon initialization.)*
 
-## 💡 Key Takeaways
-InvestEase transforms traditional localized python scripting concepts into a full-scale deployed SaaS architecture. It effectively synthesizes secure production-ready database management, rigorous cryptographic logic, and live multi-featured statistical dashboards into a single optimized pipeline.
+---
+
+## 🌍 Deployment
+
+* Designed completely statelessly for rapid staging on **Streamlit Cloud**.
+* Native background logic fully compatible running distributedly on platforms like **Render**.
+* Requires active provisioned **PostgreSQL** attachment.
+
+---
+
+## 📈 Key Takeaways
+* **Full-stack ML Project:** Transcends simple analytics into a scalable Python web application.
+* **Production-Ready Architecture:** Clean database schema integration alongside proper user routing execution.
+* **Clean UI & Real-World Utility:** Directly manages volatile live tracking, blending data science with seamless interactive workflows.
+
+---
+
+> **Disclaimer:** Information projected is for demonstrative programming utility. Not intended for real financial decisions.
