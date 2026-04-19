@@ -636,7 +636,7 @@ def page_prediction():
         st.error(f"Prediction logic encountered a critical boundary error: {e}")
         return
 
-    if not prediction_results:
+    if prediction_results is None or (isinstance(prediction_results, pd.DataFrame) and prediction_results.empty) or (isinstance(prediction_results, dict) and len(prediction_results) == 0):
         st.error("Prediction failed. Feature generation could not complete reliably given incoming price action limits.")
         return
 

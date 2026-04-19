@@ -247,7 +247,7 @@ def predict_stock_growth(cumulative_returns_df, days_to_predict=30, historical_w
     Performs time-series aware evaluation against dual regression models yielding structured prediction datasets conditionally.
     """
     if cumulative_returns_df.empty or len(cumulative_returns_df) < historical_window:
-        return {}
+        return None
 
     data = cumulative_returns_df.tail(historical_window).copy()
     
@@ -263,7 +263,7 @@ def predict_stock_growth(cumulative_returns_df, days_to_predict=30, historical_w
     
     data = data.dropna()
     if len(data) < 20:  # Failsafe if data is extremely disjointed
-        return {}
+        return None
         
     X = data[['lag_1', 'lag_2', 'lag_3', 'rolling_mean', 'returns', 'volatility_5', 'momentum']].values
     y = data['Cumulative_Growth'].values
@@ -277,7 +277,7 @@ def predict_stock_growth(cumulative_returns_df, days_to_predict=30, historical_w
         evaluation_results = evaluate_models(X_train, y_train, X_test, y_test)
     except Exception as e:
         print(f"DEBUG: Model configuration failed: {e}")
-        return {}
+        return None
 
     best_model_name = "Random Forest" if evaluation_results["Random Forest"]["rmse"] < evaluation_results["Linear Regression"]["rmse"] else "Linear Regression"
 
