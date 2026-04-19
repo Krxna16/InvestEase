@@ -22,8 +22,11 @@ def create_distribution_pie_chart(performance_df):
         hole=0.3
     )
     
-    fig.update_traces(textposition='inside', textinfo='percent+label')
+    fig.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#0e1117', width=2)))
     fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(t=50, b=0, l=0, r=0),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
     )
@@ -47,7 +50,10 @@ def create_growth_line_chart(cumulative_returns_df, benchmark_df):
             y=cumulative_returns_df['Cumulative_Growth'],
             mode='lines', 
             name='My Portfolio',
-            line=dict(width=3, color='#4CAF50')
+            line_shape='spline',
+            fill='tozeroy',
+            fillcolor='rgba(76, 175, 80, 0.1)',
+            line=dict(width=3, color='#00Ffa3')
         ))
 
     if not benchmark_df.empty:
@@ -56,13 +62,17 @@ def create_growth_line_chart(cumulative_returns_df, benchmark_df):
             y=benchmark_df['Benchmark_Growth'],
             mode='lines', 
             name='S&P 500 (^GSPC)',
+            line_shape='spline',
             line=dict(width=2, color='#007BFF', dash='dash')
         ))
 
     fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         title='Portfolio Growth vs. S&P 500 (Growth Factor)',
-        xaxis_title="Date",
-        yaxis_title="Growth Factor (Starting Value = 1.0)",
+        xaxis=dict(title="Date", showgrid=False, zeroline=False),
+        yaxis=dict(title="Growth Factor", showgrid=False, zeroline=False),
         hovermode="x unified"
     )
     return fig
@@ -79,6 +89,9 @@ def create_prediction_line_chart(historical_df, prediction_df):
     fig.add_trace(go.Scatter(
         x=historical_df['Date'], y=historical_df['Cumulative_Growth'],
         mode='lines', name='Historical Growth',
+        line_shape='spline',
+        fill='tozeroy',
+        fillcolor='rgba(0, 123, 255, 0.1)',
         line=dict(color='#007BFF', width=2)
     ))
 
@@ -87,13 +100,17 @@ def create_prediction_line_chart(historical_df, prediction_df):
     fig.add_trace(go.Scatter(
         x=prediction_trace_df['Date'], y=prediction_trace_df['Cumulative_Growth'],
         mode='lines', name='30-Day Forecast',
-        line=dict(color='#FF4B4B', width=2, dash='dot')
+        line_shape='spline',
+        line=dict(color='#00Ffa3', width=2, dash='dot')
     ))
 
     fig.update_layout(
-        title='Portfolio Growth & 30-Day Forecast (Linear Regression)',
-        xaxis_title="Date",
-        yaxis_title="Growth Factor",
+        template='plotly_dark',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title='Portfolio Growth & 30-Day Forecast',
+        xaxis=dict(title="Date", showgrid=False, zeroline=False),
+        yaxis=dict(title="Growth Factor", showgrid=False, zeroline=False),
         hovermode="x unified",
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
@@ -124,8 +141,11 @@ def create_sector_distribution_chart(performance_df, value_type='Current Value')
         hole=0.4 # Slightly larger hole
     )
     
-    fig.update_traces(textposition='inside', textinfo='percent')
+    fig.update_traces(textposition='inside', textinfo='percent', marker=dict(line=dict(color='#0e1117', width=2)))
     fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(t=50, b=0, l=0, r=0),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
     )

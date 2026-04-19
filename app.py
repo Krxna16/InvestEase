@@ -10,6 +10,7 @@ import database as db
 import data_fetch as dfetch
 import portfolio_analysis as analysis
 import visualization as viz
+import authentication as auth
 
 # --- CONFIGURATION ---
 st.set_page_config(
@@ -17,6 +18,266 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+def inject_custom_css():
+    st.markdown("""
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            
+            html, body, [class*="css"] {
+                font-family: 'Inter', sans-serif !important;
+            }
+            
+            /* --- KEYFRAMES --- */
+            @keyframes gradientBG {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+            @keyframes glowPulse {
+                0% { opacity: 0.3; filter: blur(4px); }
+                100% { opacity: 0.8; filter: blur(6px); }
+            }
+            @keyframes slideInPill {
+                0% { opacity: 0; transform: scaleX(0.8) translateY(2px); }
+                100% { opacity: 1; transform: scaleX(1) translateY(0); }
+            }
+            @keyframes fadeInUp {
+                0% { opacity: 0; transform: translateY(15px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+
+            /* Main background */
+            .stApp {
+                background: linear-gradient(-45deg, #0B0F19, #0f1626, #141226, #0B0F19) !important;
+                background-size: 400% 400% !important;
+                animation: gradientBG 15s ease infinite !important;
+                color: #ffffff;
+            }
+            
+            /* Hide Streamlit headers and footers */
+            header {visibility: hidden;}
+            footer {visibility: hidden;}
+            
+            /* Sidebar Styling */
+            [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+                display: none !important;
+            }
+            
+            /* --- MASTER NAVBAR CONTAINER (Logo + Tabs + Profile) --- */
+            div[data-testid="stHorizontalBlock"]:has(.logo-marker) {
+                background: rgba(15, 20, 30, 0.6) !important;
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.05); /* subtle fallback */
+                padding: 12px 24px;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.15); /* Soft outer glow */
+                align-items: center;
+                margin-bottom: 2rem;
+                position: relative;
+                isolation: isolate;
+            }
+            /* Glowing gradient pseudo-border */
+            div[data-testid="stHorizontalBlock"]:has(.logo-marker)::after {
+                content: "";
+                position: absolute;
+                inset: -1px;
+                border-radius: 17px;
+                background: linear-gradient(90deg, #3B82F6, #8B5CF6, #06B6D4);
+                z-index: -1;
+                animation: glowPulse 3s infinite alternate;
+            }
+
+            /* --- UNIFIED TABS INNER CONTAINER (Center Section) --- */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) {
+                background: rgba(30, 40, 50, 0.4) !important;
+                border-radius: 30px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 4px;
+                gap: 0 !important;
+            }
+            
+            /* Remove column gaps strictly inside inner nav container */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) > div[data-testid="column"] {
+                width: auto !important;
+                flex: 1 1 0% !important;
+            }
+            
+            /* Button tab design inside unified container */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) .stButton>button {
+                background: transparent !important;
+                border: none !important;
+                border-radius: 26px !important;
+                box-shadow: none !important;
+                color: #9CA3AF;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                padding: 8px 0px;
+                width: 100%;
+            }
+            
+            /* Hover style */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) .stButton>button:hover:not([kind="primary"]) {
+                color: #FFFFFF !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                transform: none; /* Block jumping inside unified pill */
+            }
+            
+            /* Active Tab Style with Slide Animation */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) .stButton>button[kind="primary"] {
+                color: #FFFFFF !important;
+                background: linear-gradient(90deg, rgba(59, 130, 246, 0.9), rgba(6, 182, 212, 0.9)) !important;
+                box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4) !important;
+                animation: slideInPill 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            }
+            
+            /* Clear ::after underlines completely */
+            div[data-testid="stHorizontalBlock"]:has(.tab-marker):not(:has(.logo-marker)) .stButton>button::after {
+                display: none !important;
+            }
+
+            /* Glassmorphism Metric Cards & Section FadeIn */
+            .glass-card {
+                position: relative;
+                isolation: isolate;
+                background: rgba(20, 25, 35, 0.6);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 20px;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease;
+                margin-bottom: 1rem;
+                animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            
+            /* Advanced Gradient Glow Hover on Glass Cards */
+            .glass-card::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 16px;
+                padding: 1px;
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.2));
+                -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                -webkit-mask-composite: xor;
+                mask-composite: exclude;
+                opacity: 0;
+                transition: opacity 0.4s ease;
+                z-index: -1;
+            }
+            .glass-card:hover::before {
+                opacity: 1;
+            }
+            .glass-card:hover {
+                transform: scale(1.02) translateY(-4px);
+                border-color: transparent;
+                box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.25);
+            }
+            
+            .metric-label {
+                font-size: 14px;
+                color: #9CA3AF;
+                letter-spacing: 0.5px;
+                margin-bottom: 8px;
+                font-weight: 500;
+            }
+            .metric-value {
+                font-size: 28px;
+                font-weight: 700;
+            }
+            
+            .profit { color: #22C55E; text-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+            .loss { color: #EF4444; text-shadow: 0 0 12px rgba(239, 68, 68, 0.5); }
+            .neutral { color: #3B82F6; }
+            
+            /* Dataframes styling */
+            [data-testid="stDataFrame"] {
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,0.08);
+            }
+            
+            /* User profile pill globally styled */
+            .user-pill {
+                background: rgba(20, 25, 35, 0.8);
+                backdrop-filter: blur(10px);
+                padding: 6px 16px;
+                border-radius: 24px;
+                border: 1px solid rgba(255,255,255,0.08);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                width: 100%;
+                height: 100%;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: border 0.3s ease;
+            }
+            .user-pill:hover {
+                border-color: rgba(59, 130, 246, 0.4);
+            }
+            .user-avatar {
+                background: linear-gradient(135deg, #3B82F6, #22C55E);
+                border-radius: 50%;
+                width: 26px;
+                height: 26px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                font-weight: bold;
+                color: white;
+            }
+            .user-name {
+                color: #E5E7EB;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            
+            /* Logout Button Specifically Targeting Last Nav Col */
+            div[data-testid="column"]:has(.logout-marker) .stButton>button {
+                background: rgba(239, 68, 68, 0.1) !important;
+                color: #EF4444 !important;
+                border: 1px solid rgba(239, 68, 68, 0.3) !important;
+                border-radius: 20px !important;
+                box-shadow: none !important;
+            }
+            div[data-testid="column"]:has(.logout-marker) .stButton>button:hover {
+                background: rgba(239, 68, 68, 0.2) !important;
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.2) !important;
+                transform: translateY(-2px);
+            }
+            div[data-testid="column"]:has(.logout-marker) .stButton>button::after {
+                display: none !important;
+            }
+            
+            /* Sticky Header simulation via block targeting */
+            [data-testid="block-container"] {
+                padding-top: 1rem;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+def create_metric_card(title, value, is_profit=None, icon=""):
+    """Generates HTML for a custom glassmorphism metric card."""
+    color_class = "neutral"
+    if is_profit is True:
+        color_class = "profit"
+    elif is_profit is False:
+        color_class = "loss"
+        
+    html = f"""
+    <div class="glass-card">
+        <div class="metric-label">{icon} {title}</div>
+        <div class="metric-value {color_class}">{value}</div>
+    </div>
+    """
+    return html
+
+# Execute CSS injection globally
+inject_custom_css()
 
 # --- HELPER FUNCTIONS ---
 
@@ -41,6 +302,12 @@ def format_beta(value):
         return f"{value:.2f}"
     return value
 
+def safe_metric(value, is_pct=True):
+    """Formats a metric safely, returning 'N/A' if None or exactly 0."""
+    if value is None or value == 0:
+        return "N/A"
+    return format_percentage(value * 100) if is_pct else f"{value:.2f}"
+
 def color_code_pl(value):
     """Returns the color (red or green) based on profit/loss value."""
     if value >= 0:
@@ -62,8 +329,7 @@ def fetch_and_calculate_portfolio(holdings_df_json):
     if holdings_df.empty:
         return perf_df, summary, cumulative_growth_df, metrics, benchmark_df, stock_betas
         
-    symbols = holdings_df['symbol'].unique().tolist()
-    
+    symbols = holdings_df['symbol'].unique().tolist()    
     # 1. Fetch live prices and sector info
     live_prices = {}
     sector_map = {}
@@ -92,8 +358,13 @@ def fetch_and_calculate_portfolio(holdings_df_json):
 
     one_year_ago = datetime.now() - pd.DateOffset(years=1)
     
-    start_date = max(earliest_purchase_date, one_year_ago).strftime('%Y-%m-%d')
+    # Use min() to get the full historical range if older than 1 year, 
+    # BUT if recent, still fetch at least 1 year for predictions!
+    start_date = min(earliest_purchase_date, one_year_ago).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Debug logging for date range
+    print(f"DEBUG [Data Fetch]: min_date: {start_date}, max_date: {end_date}")
     
     # 3. Fetch historical prices (INCLUDING BENCHMARK)
     historical_df = dfetch.get_historical_prices(symbols, start_date, end_date, include_benchmark=True)
@@ -125,7 +396,7 @@ def page_home():
     """)
     st.divider()
 
-    holdings_df = db.get_all_holdings()
+    holdings_df = db.get_all_holdings(st.session_state['user_id'])
     
     if holdings_df.empty:
         st.warning("Your portfolio is empty. Navigate to **Add/Manage Holdings** to get started!")
@@ -147,22 +418,15 @@ def page_home():
     overall_gain_formatted = format_percentage(summary['Overall Gain (%)'])
     pl_color = color_code_pl(summary['Total Profit/Loss'])
     
-    pl_display = f"""
-    <div style='text-align: center; font-size: 20px;'>
-        Total Profit/Loss
-    </div>
-    <div style='text-align: center; font-size: 36px; color: {pl_color}; font-weight: bold;'>
-        {total_pl_formatted}
-    </div>
-    <div style='text-align: center; font-size: 16px; color: {pl_color};'>
-        {overall_gain_formatted}
-    </div>
-    """
+    # Debug trace of metrics
+    print(f"DEBUG: metrics keys loaded: {metrics.keys()}")
     
-    col1.metric("Total Current Value", format_currency(summary['Total Current Value']), delta=None, delta_color="off")
+    pl_display = create_metric_card("Total Profit/Loss", total_pl_formatted, is_profit=(summary['Total Profit/Loss'] >= 0), icon="💎")
+    
+    col1.markdown(create_metric_card("Total Current Value", format_currency(summary['Total Current Value']), icon="💰"), unsafe_allow_html=True)
     col2.markdown(pl_display, unsafe_allow_html=True)
-    col3.metric("Annualized Return", format_percentage(metrics['Annualized Average Return'] * 100))
-    col4.metric("Sharpe Ratio (Risk-Adj)", f"{metrics['Sharpe Ratio (Risk-Adjusted)']:.2f}")
+    col3.markdown(create_metric_card("Annualized Return", safe_metric(metrics.get('Annualized Average Return', 0), is_pct=True), is_profit=(metrics.get('Annualized Average Return', 0) >= 0), icon="📈"), unsafe_allow_html=True)
+    col4.markdown(create_metric_card("Sharpe Ratio (Risk-Adj)", safe_metric(metrics.get('Sharpe Ratio (Risk-Adjusted)', 0), is_pct=False), icon="⚖️"), unsafe_allow_html=True)
 
     st.markdown("---")
     
@@ -204,19 +468,25 @@ def page_add_manage():
         if submitted:
             if symbol and quantity > 0 and purchase_price > 0:
                 try:
-                    db.add_holding(symbol, quantity, purchase_price, purchase_date.strftime('%Y-%m-%d'))
-                    st.success(f"Added {quantity} shares of {symbol}!")
+                    db.add_holding(
+                        st.session_state['user_id'],
+                        symbol, 
+                        quantity, 
+                        purchase_price, 
+                        purchase_date.strftime('%Y-%m-%d')
+                    )
+                    st.toast(f"Added {quantity} shares of {symbol}!", icon="✅")
                     fetch_and_calculate_portfolio.clear()
                     st.rerun() 
                 except Exception as e:
-                    st.error(f"Error adding holding: {e}")
+                    st.toast(f"Error adding holding: {e}", icon="⚠️")
             else:
-                st.error("Please fill in all fields with valid data.")
+                st.toast("Please fill in all fields with valid data.", icon="⚠️")
 
     st.divider()
     
     st.header("Current Portfolio Holdings")
-    holdings_df = db.get_all_holdings()
+    holdings_df = db.get_all_holdings(st.session_state['user_id'])
 
     if holdings_df.empty:
         st.info("No holdings recorded.")
@@ -236,17 +506,18 @@ def page_add_manage():
         try:
             for index, row in edited_df.iterrows():
                 db.update_holding(
+                    st.session_state['user_id'],
                     row['ID'], 
                     row['Symbol'], 
                     row['Quantity'], 
                     row['Price'], 
                     str(row['Date'])
                 )
-            st.success("Portfolio holdings updated successfully!")
+            st.toast("Portfolio holdings updated successfully!", icon="✅")
             fetch_and_calculate_portfolio.clear() 
             st.rerun() 
         except Exception as e:
-            st.error(f"Error updating holdings: {e}")
+            st.toast(f"Error updating holdings: {e}", icon="⚠️")
             
     st.markdown("---")
     st.subheader("Delete Holding")
@@ -257,18 +528,18 @@ def page_add_manage():
         
         if delete_submitted and id_to_delete:
             try:
-                db.delete_holding(id_to_delete)
-                st.success(f"Holding with ID {id_to_delete} deleted.")
+                db.delete_holding(st.session_state['user_id'], id_to_delete)
+                st.toast(f"Holding with ID {id_to_delete} deleted.", icon="✅")
                 fetch_and_calculate_portfolio.clear() 
                 st.rerun() 
             except Exception as e:
-                st.error(f"Error deleting holding: {e}")
+                st.toast(f"Error deleting holding: {e}", icon="⚠️")
 
 def page_analysis():
     """Detailed performance analysis and metrics page."""
     st.title("📈 Performance Analysis")
     
-    holdings_df = db.get_all_holdings()
+    holdings_df = db.get_all_holdings(st.session_state['user_id'])
     
     if holdings_df.empty:
         st.warning("Your portfolio is empty. Add holdings to see analysis.")
@@ -304,13 +575,16 @@ def page_analysis():
     col1, col2, col3 = st.columns(3)
     col4, col5, col6 = st.columns(3)
     
-    col1.metric("Annualized Return", format_percentage(metrics['Annualized Average Return'] * 100))
-    col2.metric("Annualized Volatility (Std Dev)", format_percentage(metrics['Annualized Volatility (Std Dev)'] * 100))
-    col3.metric("Sharpe Ratio", f"{metrics['Sharpe Ratio (Risk-Adjusted)']:.2f}")
+    # Debug trace for detail analysis
+    print(f"DEBUG [page_analysis]: metrics keys: {metrics.keys()}")
+    
+    col1.markdown(create_metric_card("Annualized Return", safe_metric(metrics.get('Annualized Average Return', 0), is_pct=True), is_profit=(metrics.get('Annualized Average Return', 0) >= 0), icon="📈"), unsafe_allow_html=True)
+    col2.markdown(create_metric_card("Annual. Volatility (Std Dev)", safe_metric(metrics.get('Annualized Volatility (Std Dev)', 0), is_pct=True), icon="📉"), unsafe_allow_html=True)
+    col3.markdown(create_metric_card("Sharpe Ratio", safe_metric(metrics.get('Sharpe Ratio (Risk-Adjusted)', 0), is_pct=False), icon="⚖️"), unsafe_allow_html=True)
 
-    col4.metric("Last 7-Day Return", format_percentage(metrics['Last 7-Day Return'] * 100))
-    col5.metric("Last 30-Day Return", format_percentage(metrics['Last 30-Day Return'] * 100))
-    col6.metric("Total Cost Basis", format_currency(summary['Total Cost Basis']))
+    col4.markdown(create_metric_card("Last 7-Day Return", safe_metric(metrics.get('Last 7-Day Return', 0), is_pct=True), is_profit=(metrics.get('Last 7-Day Return', 0) >= 0), icon="📅"), unsafe_allow_html=True)
+    col5.markdown(create_metric_card("Last 30-Day Return", safe_metric(metrics.get('Last 30-Day Return', 0), is_pct=True), is_profit=(metrics.get('Last 30-Day Return', 0) >= 0), icon="🗓️"), unsafe_allow_html=True)
+    col6.markdown(create_metric_card("Total Cost Basis", format_currency(summary.get('Total Cost Basis', 0)), icon="💵"), unsafe_allow_html=True)
     
     st.markdown("""
     ---
@@ -326,7 +600,7 @@ def page_prediction():
         **Disclaimer:** This is a basic **Linear Regression** forecast based purely on your portfolio's recent historical returns. 
     """)
     
-    holdings_df = db.get_all_holdings()
+    holdings_df = db.get_all_holdings(st.session_state['user_id'])
     
     if holdings_df.empty:
         st.warning("Your portfolio is empty. Add holdings to enable prediction.")
@@ -351,21 +625,31 @@ def page_prediction():
     
     st.header("Prediction Summary")
     
-    last_historical_value = cumulative_returns_df['Cumulative_Growth'].iloc[-1]
-    final_predicted_value = prediction_df['Cumulative_Growth'].iloc[-1]
+    # Debug print to verify variables
+    print(f"DEBUG [page_prediction]: cumulative_growth_df has {len(cumulative_growth_df)} rows.")
+    print(f"DEBUG [page_prediction]: prediction_df has {len(prediction_df)} rows.")
     
-    forecasted_gain_factor = final_predicted_value / last_historical_value
-    forecasted_gain_percent = (forecasted_gain_factor - 1) * 100
-    
-    col1, col2, col3 = st.columns(3)
-    
-    col1.metric("Current Growth Factor", f"{last_historical_value:.4f}")
-    col2.metric(
-        "Predicted Factor (30 Days)", 
-        f"{final_predicted_value:.4f}",
-        f"{forecasted_gain_factor - 1:.2%} change"
-    )
-    col3.metric("Projected 30-Day Return", format_percentage(forecasted_gain_percent))
+    try:
+        # Fixed NameError: Changed cumulative_returns_df -> cumulative_growth_df
+        last_historical_value = cumulative_growth_df['Cumulative_Growth'].iloc[-1]
+        final_predicted_value = prediction_df['Cumulative_Growth'].iloc[-1]
+        
+        # Safe check to prevent division by zero
+        if last_historical_value == 0:
+            forecasted_gain_factor = 1.0
+        else:
+            forecasted_gain_factor = final_predicted_value / last_historical_value
+            
+        forecasted_gain_percent = (forecasted_gain_factor - 1) * 100
+        
+        col1, col2, col3 = st.columns(3)
+        
+        col1.markdown(create_metric_card("Current Growth Factor", f"{last_historical_value:.4f}", icon="📊"), unsafe_allow_html=True)
+        col2.markdown(create_metric_card("Predicted Factor (30 Days)", f"{final_predicted_value:.4f}", is_profit=(forecasted_gain_factor >= 1), icon="🔮"), unsafe_allow_html=True)
+        col3.markdown(create_metric_card("Projected 30-Day Return", format_percentage(forecasted_gain_percent), is_profit=(forecasted_gain_percent >= 0), icon="🚀"), unsafe_allow_html=True)
+        
+    except (KeyError, IndexError) as e:
+        st.error(f"Unable to load summary data. Missing expected columns or rows. Error: {e}")
     
     
 def page_import_export():
@@ -384,20 +668,20 @@ def page_import_export():
             with open(temp_file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            success, message = db.import_csv(temp_file_path)
+            success, message = db.import_csv(temp_file_path, st.session_state['user_id'])
             
             os.remove(temp_file_path)
 
             if success:
-                st.success(message + " Navigate to **Manage Holdings** to verify.")
+                st.toast(message + " Navigate to **Manage Holdings** to verify.", icon="✅")
                 fetch_and_calculate_portfolio.clear() 
             else:
-                st.error(message)
+                st.toast(message, icon="⚠️")
 
     st.divider()
 
     st.header("Export Portfolio (CSV)")
-    holdings_df = db.get_all_holdings()
+    holdings_df = db.get_all_holdings(st.session_state['user_id'])
 
     if holdings_df.empty:
         st.warning("No data to export.")
@@ -417,22 +701,84 @@ def page_import_export():
 # --- MAIN APP LOGIC ---
 
 PAGES = {
-    "Home & Overview": page_home,
-    "Add/Manage Holdings": page_add_manage,
-    "Detailed Analysis": page_analysis,
-    "Prediction": page_prediction, 
-    "Import/Export Data": page_import_export,
+    "Home": {"func": page_home, "icon": "🏠"},
+    "Holdings": {"func": page_add_manage, "icon": "➕"},
+    "Analysis": {"func": page_analysis, "icon": "📊"},
+    "Prediction": {"func": page_prediction, "icon": "🔮"}, 
+    "Import/Export": {"func": page_import_export, "icon": "📤"},
 }
 
-# Add custom project header at the top of the sidebar
-st.sidebar.markdown(
-    "<h1 style='text-align: center; font-size: 24px; color: #4CAF50;'>📊 InvestEase</h1>", 
-    unsafe_allow_html=True
-)
-st.sidebar.markdown("---") 
+if 'current_page' not in st.session_state:
+    st.session_state['current_page'] = "Home"
 
-st.sidebar.title("Navigation Menu")
-selection = st.sidebar.radio("Go to", list(PAGES.keys()))
+# Require log in to show the app
+if not auth.render_login_ui():
+    st.stop()
 
-page = PAGES[selection]
-page()
+# Build Top Navigation Bar Layout
+header_cols = st.columns([2, 5.5, 2.5], vertical_alignment="center")
+
+logo_html = """
+<div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="8" fill="url(#paint0_linear)"/>
+        <path d="M8 20L14 12L18 16L24 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 8V14M24 8H18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+            <linearGradient id="paint0_linear" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#3B82F6"/>
+                <stop offset="1" stop-color="#22C55E"/>
+            </linearGradient>
+        </defs>
+    </svg>
+    <h3 style="margin:0; font-weight:700; font-size: 22px; background: -webkit-linear-gradient(45deg, #3B82F6, #22C55E); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">InvestEase</h3>
+</div>
+"""
+
+# Logo
+with header_cols[0]:
+    st.markdown('<div class="logo-marker" style="display:none;"></div>', unsafe_allow_html=True)
+    st.markdown(logo_html, unsafe_allow_html=True)
+
+# Navigation Buttons (Unified Container)
+with header_cols[1]:
+    nav_tabs = st.columns(len(PAGES))
+    for i, (page_name, page_data) in enumerate(PAGES.items()):
+        with nav_tabs[i]:
+            # Critical tracking marker tying styles flawlessly back to this exact block without crashing
+            st.markdown('<div class="tab-marker" style="display:none;"></div>', unsafe_allow_html=True)
+            btn_type = "primary" if st.session_state['current_page'] == page_name else "secondary"
+            if st.button(f"{page_data['icon']} {page_name}", use_container_width=True, type=btn_type):
+                st.session_state['current_page'] = page_name
+                st.rerun()
+
+# User Settings (Top Right)
+with header_cols[2]:
+    profile_cols = st.columns([2, 1], vertical_alignment="center")
+    
+    with profile_cols[0]:
+        # Extract first letter of username for avatar
+        initial = st.session_state["username"][0].upper() if st.session_state["username"] else "U"
+        st.markdown(
+            f'''
+            <div class="user-pill">
+                <div class="user-avatar">{initial}</div>
+                <span class="user-name">{st.session_state["username"]}</span>
+            </div>
+            ''', 
+            unsafe_allow_html=True
+        )
+        
+    with profile_cols[1]:
+        st.markdown('<div class="logout-marker" style="display:none;"></div>', unsafe_allow_html=True)
+        if st.button("Logout", use_container_width=True):
+            st.session_state['logged_in'] = False
+            st.session_state['user_id'] = None
+            st.session_state['username'] = None
+            st.cache_data.clear()
+            st.rerun()
+
+st.markdown("---")
+
+# Render active page
+PAGES[st.session_state['current_page']]["func"]()

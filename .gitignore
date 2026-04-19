@@ -1,0 +1,24 @@
+# Environment Variables
+.env
+
+# Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.tox/
+
+# Core project specific
+portfolio.db
+exported_portfolio.csv
+temp_uploaded_portfolio.csv

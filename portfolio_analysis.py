@@ -117,8 +117,25 @@ def calculate_portfolio_summary(performance_df):
 
 def calculate_time_series_metrics(holdings_df, historical_df):
     """Calculates time-series metrics like Sharpe Ratio and volatility."""
+    
+    default_metrics = {
+        'Annualized Average Return': 0.0,
+        'Annualized Volatility (Std Dev)': 0.0,
+        'Sharpe Ratio (Risk-Adjusted)': 0.0,
+        'Last 7-Day Return': 0.0,
+        'Last 30-Day Return': 0.0,
+    }
+
     if holdings_df.empty or historical_df.empty:
-        return {}, pd.DataFrame()
+        return default_metrics, pd.DataFrame()
+
+    # 1. Defense: Ensure historical_df has a proper DatetimeIndex
+    if not isinstance(historical_df.index, pd.DatetimeIndex):
+        historical_df.index = pd.to_datetime(historical_df.index, errors='coerce')
+        historical_df = historical_df[historical_df.index.notna()]
+
+    if historical_df.empty:
+        return default_metrics, pd.DataFrame()
 
     current_values = holdings_df.set_index('symbol')['quantity'] * historical_df.iloc[-1]
     weights = current_values / current_values.sum()
@@ -127,23 +144,65 @@ def calculate_time_series_metrics(holdings_df, historical_df):
     historical_df = historical_df[historical_df.columns.intersection(portfolio_symbols)]
 
     weights = weights[weights.index.isin(historical_df.columns)].fillna(0)
-    weights = weights / weights.sum()
+    
+    # Defensive check for zero weight sum
+    weight_sum = weights.sum()
+    if weight_sum == 0:
+        return default_metrics, pd.DataFrame()
+        
+    weights = weights / weight_sum
 
+    # Ensure strictly sorted chronological order
+    historical_df = historical_df.sort_index()
+    
+    # Fill backwards and forwards strictly guaranteeing no null-gaps when calculating percentage shifts
+    historical_df = historical_df.ffill().bfill()
+    
     daily_returns = historical_df.pct_change()
-    portfolio_daily_returns = (daily_returns * weights).sum(axis=1).dropna()
+    
+    # Use min_count=1 to avoid 0.0 for completely NaN rows, then explicitly drop them
+    portfolio_daily_returns = (daily_returns * weights).sum(axis=1, min_count=1).dropna()
+    
+    # Debug logging for the returned array lengths
+    print(f"DEBUG [portfolio_analysis]: portfolio_daily_returns length: {len(portfolio_daily_returns)}")
+    print(f"DEBUG [portfolio_analysis]: portfolio_daily_returns head:\n{portfolio_daily_returns.head(3)}")
+    
+    # 2. Defense: Ensure portfolio_daily_returns has a proper DatetimeIndex
+    if not isinstance(portfolio_daily_returns.index, pd.DatetimeIndex):
+        print(f"DEBUG: Converted portfolio_daily_returns index from {type(portfolio_daily_returns.index)} to DatetimeIndex")
+        portfolio_daily_returns.index = pd.to_datetime(portfolio_daily_returns.index, errors='coerce')
+    
+    # Clean up any bad dates
+    portfolio_daily_returns = portfolio_daily_returns[portfolio_daily_returns.index.notna()]
+    
+    # 3. Defense: Handle empty data safely before resampling
+    if portfolio_daily_returns.empty:
+        return default_metrics, pd.DataFrame()
     
     ANNUAL_FACTOR = 252 
     
-    geometric_daily_return = gmean(1 + portfolio_daily_returns) - 1
+    try:
+        # 1 + returns can't be negative for stocks, but gmean throws on negative
+        geometric_daily_return = gmean(np.maximum(1 + portfolio_daily_returns, 0.0001)) - 1
+    except Exception:
+        geometric_daily_return = 0
+        
     annualized_return = geometric_daily_return * ANNUAL_FACTOR
     
     annualized_std_dev = portfolio_daily_returns.std() * np.sqrt(ANNUAL_FACTOR)
     
     sharpe_ratio = (annualized_return - RISK_FREE_RATE) / annualized_std_dev if annualized_std_dev else 0
 
-    weekly_returns = (1 + portfolio_daily_returns).resample('W').prod() - 1
-    monthly_returns = (1 + portfolio_daily_returns).resample('M').prod() - 1
-    
+    # 4. Compatibility with latest pandas (Python 3.13)
+    # Older pandas used 'M' and 'W', pandas 2.2+ requires 'ME' and 'W-FRI' for end of month/week.
+    try:
+        weekly_returns = (1 + portfolio_daily_returns).resample('W-FRI').prod() - 1
+        monthly_returns = (1 + portfolio_daily_returns).resample('ME').prod() - 1
+    except ValueError:
+        # Fallback for pandas versions < 2.2
+        weekly_returns = (1 + portfolio_daily_returns).resample('W').prod() - 1
+        monthly_returns = (1 + portfolio_daily_returns).resample('M').prod() - 1
+
     metrics = {
         'Annualized Average Return': annualized_return,
         'Annualized Volatility (Std Dev)': annualized_std_dev,
