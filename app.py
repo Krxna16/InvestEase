@@ -19,6 +19,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- STRICT RENDER SEPARATION (AUTHENTICATION) ---
+# If user is not logged in, render login UI and stop execution immediately
+if not auth.render_login_ui():
+    st.stop()
+
 def inject_custom_css():
     st.markdown("""
         <style>
@@ -256,6 +261,16 @@ def inject_custom_css():
             /* Sticky Header simulation via block targeting */
             [data-testid="block-container"] {
                 padding-top: 1rem;
+            }
+            
+            /* --- Strict Dropdown (Non-Editable) --- */
+            /* Force selectboxes to look and act like strict dropdowns, forbidding text typing */
+            div[data-baseweb="select"] input {
+                caret-color: transparent !important;
+                pointer-events: none !important;
+            }
+            div[data-baseweb="select"] {
+                cursor: pointer !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -596,10 +611,6 @@ def page_prediction():
     """Page for displaying portfolio forecast."""
     st.title("🔮 Portfolio Forecast (30-Day Outlook)")
     
-    st.warning("""
-        **Disclaimer:** This is a basic **Linear Regression** forecast based purely on your portfolio's recent historical returns. 
-    """)
-    
     holdings_df = db.get_all_holdings(st.session_state['user_id'])
     
     if holdings_df.empty:
@@ -608,15 +619,68 @@ def page_prediction():
 
     perf_df, summary, cumulative_growth_df, metrics, benchmark_df, _ = fetch_and_calculate_portfolio(holdings_df.to_json())
     
-    if cumulative_growth_df.empty or len(cumulative_growth_df) < 60:
-        st.error("Cannot perform prediction. Historical data is insufficient (need at least 60 days of data).")
+    if cumulative_growth_df.empty:
+        st.error("Cannot perform prediction. Historical data is completely missing.")
+        return
+        
+    if len(cumulative_growth_df) < 20:
+        st.warning("⚠️ Very small dataset detected. Prediction requires more historical data to generate reliable structural trends.")
+        return
+        
+    if len(cumulative_growth_df) < 60:
+        st.info("ℹ️ Dataset contains less than 60 days. Forecast may be highly sensitive to short-term variance.")
+
+    try:
+        prediction_results = analysis.predict_stock_growth(cumulative_growth_df, days_to_predict=30, historical_window=60)
+    except Exception as e:
+        st.error(f"Prediction logic encountered a critical boundary error: {e}")
         return
 
-    prediction_df = analysis.predict_stock_growth(cumulative_growth_df, days_to_predict=30, historical_window=60)
-
-    if prediction_df.empty:
-        st.error("Prediction failed. Ensure you have sufficient historical data (typically 60+ trading days).")
+    if not prediction_results:
+        st.error("Prediction failed. Feature generation could not complete reliably given incoming price action limits.")
         return
+
+    best_model = prediction_results["best_model"]
+    
+    st.header("⚙️ Model Comparison & Selection")
+    col_sel, col_metrics = st.columns([1, 2])
+    
+    with col_sel:
+        st.success(f"🏆 Best Auto-Selected Model:\n**{best_model}**")
+        selected_model = st.selectbox(
+            "Select Prediction Model:", 
+            ["Linear Regression", "Random Forest"],
+            index=0 if best_model == "Linear Regression" else 1
+        )
+        
+        # Calculate algorithmic confidence natively mapping absolute underlying trend variances
+        obs_vol = cumulative_growth_df['Cumulative_Growth'].pct_change().std()
+        if obs_vol < 0.015:
+            conf_tier, conf_color = "High", "green"
+        elif obs_vol < 0.03:
+            conf_tier, conf_color = "Medium", "orange"
+        else:
+            conf_tier, conf_color = "Low", "red"
+            
+        st.markdown(f"**Prediction Confidence:** <span style='color:{conf_color}'>{conf_tier}</span>", unsafe_allow_html=True)
+        
+    with col_metrics:
+        # Building explanatory metrics table resolving data-science jargon for external recruiters
+        st.markdown("Metrics Explanation: \n* **RMSE**: Average error bound per tick *(Lower is better)* \n* **R²**: Percentage of financial variance successfully interpreted *(0 to 1 scaling, Higher is better)*", help="Valid R² bounds rest strictly beneath 1.0. Extreme negatives assert model logic breakage.")
+        metrics_data = {
+            "Model": ["Linear Regression", "Random Forest"],
+            "RMSE (Error)": [
+                f"{prediction_results['metrics']['Linear Regression']['rmse']:.4f}",
+                f"{prediction_results['metrics']['Random Forest']['rmse']:.4f}"
+            ],
+            "R² Score": [
+                f"{prediction_results['metrics']['Linear Regression']['r2']:.4f}",
+                f"{prediction_results['metrics']['Random Forest']['r2']:.4f}"
+            ]
+        }
+        st.dataframe(pd.DataFrame(metrics_data), use_container_width=True, hide_index=True)
+        
+    prediction_df = prediction_results[selected_model]
 
     st.header("Growth Trajectory: Historical vs. Forecast")
     st.plotly_chart(viz.create_prediction_line_chart(cumulative_growth_df, prediction_df), use_container_width=True)
@@ -710,10 +774,6 @@ PAGES = {
 
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "Home"
-
-# Require log in to show the app
-if not auth.render_login_ui():
-    st.stop()
 
 # Build Top Navigation Bar Layout
 header_cols = st.columns([2, 5.5, 2.5], vertical_alignment="center")
