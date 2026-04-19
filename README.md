@@ -4,7 +4,7 @@ A production-ready, multi-user stock portfolio forecasting and tracking platform
 ---
 
 ## 🌐 Live Demo
-🔗 [Experience InvestEase Live](https://your-app-link.streamlit.app)
+🔗 [Experience InvestEase Live](https://krxna16-stock-portfolio-tool-app-bdjwdw.streamlit.app)
 
 ---
 
