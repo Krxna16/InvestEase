@@ -395,7 +395,7 @@ def fetch_and_calculate_portfolio(holdings_df_json):
     
     if excluded_symbols:
         print(f"DEBUG [Data Fetch]: Excluded symbols due to missing data: {excluded_symbols}")
-        st.warning("Some stocks could not be fetched and were excluded")
+        st.warning(f"Some stocks could not be fetched: {', '.join(excluded_symbols)}")
         historical_df = historical_df[valid_cols]
         symbols = [sym for sym in symbols if sym not in excluded_symbols]
         
@@ -640,7 +640,7 @@ def page_prediction():
     perf_df, summary, cumulative_growth_df, metrics, benchmark_df, _ = fetch_and_calculate_portfolio(holdings_df.to_json())
     
     if cumulative_growth_df is None or cumulative_growth_df.empty:
-        st.error("No historical data found. Please verify your stock symbols (e.g., use RELIANCE.NS for Indian stocks).")
+        st.error("No historical data found. Check stock symbols.")
         return
         
     if len(cumulative_growth_df) < 20:

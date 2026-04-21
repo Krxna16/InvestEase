@@ -1,6 +1,9 @@
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
+import streamlit as st
+import logging
+import time
 
 _price_cache = {}
 _info_cache = {} # Cache for ticker info (used to get sector)
@@ -49,9 +52,42 @@ def get_sector_info(symbol):
     # Extract the sector, defaulting to 'N/A' if not found
     return info.get('sector', 'N/A')
 
+def fetch_with_retry(symbol, start_date=None, end_date=None, base_retry=True):
+    """Fetches yfinance data with a retry limit, auto-appending .NS for Indian stocks."""
+    retries = 3
+    for attempt in range(retries):
+        try:
+            data = yf.download(
+                symbol, 
+                start=start_date, 
+                end=end_date, 
+                progress=False, 
+                threads=False
+            )
+            if data is not None and not data.empty and not data.isna().all().all():
+                return data
+            time.sleep((attempt + 1) * 0.5)
+        except Exception as e:
+            logging.warning(f"Error fetching historical data for {symbol} on attempt {attempt+1}: {e}")
+            time.sleep((attempt + 1) * 0.5)
+            
+    # Auto-append .NS fallback for Indian stocks if no suffix exists
+    if base_retry and '.' not in symbol and '^' not in symbol:
+        ns_symbol = symbol + ".NS"
+        logging.warning(f"Falling back to {ns_symbol} as base symbol {symbol} failed.")
+        return fetch_with_retry(ns_symbol, start_date, end_date, base_retry=False)
+        
+    logging.warning(f"Failed fetch for {symbol} after {retries} retries.")
+    return None
+
+@st.cache_data(ttl=3600)
+def fetch_data_cached(symbol, start_date, end_date):
+    """Cached wrapper around fetch_with_retry."""
+    return fetch_with_retry(symbol, start_date, end_date)
+
 def get_historical_prices(symbols, start_date, end_date, include_benchmark=False):
     """
-    Fetches adjusted closing historical prices for a list of symbols.
+    Fetches adjusted closing historical prices for a list of symbols sequentially.
     Optionally includes the S&P 500 benchmark (^GSPC).
     """
     fetch_symbols = symbols.copy()
@@ -61,27 +97,22 @@ def get_historical_prices(symbols, start_date, end_date, include_benchmark=False
     if not fetch_symbols:
         return pd.DataFrame()
         
-    try:
-        data = yf.download(fetch_symbols, start=start_date, end=end_date, interval="1d")
-        
-        if isinstance(fetch_symbols, str) or len(fetch_symbols) == 1:
-            sym = fetch_symbols[0] if isinstance(fetch_symbols, list) else fetch_symbols
-            if 'Adj Close' in data.columns:
-                return data[['Adj Close']].rename(columns={'Adj Close': sym})
-            else:
-                return data[['Close']].rename(columns={'Close': sym})
-
-        # For multiple symbols, select the Adjusted Close prices
-        if 'Adj Close' in data.columns:
-            historical_df = data['Adj Close']
-        else:
-            historical_df = data['Close'] 
+    compiled_data = {}
+    
+    for sym in fetch_symbols:
+        data = fetch_data_cached(sym, start_date, end_date)
+        if data is not None and not data.empty:
+            # Squeeze guarantees we flatten possible MultiIndex from yfinance updates
+            price_col = data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
+            if isinstance(price_col, pd.DataFrame):
+                price_col = price_col.squeeze()
+            compiled_data[sym] = price_col
             
-        return historical_df
-        
-    except Exception as e:
-        print(f"Error fetching historical data: {e}")
+    if not compiled_data:
         return pd.DataFrame()
+        
+    historical_df = pd.DataFrame(compiled_data)
+    return historical_df
 
 def get_benchmark_returns(benchmark_symbol='^GSPC', start_date=None, end_date=None):
     """Fetches historical data for a benchmark (default: S&P 500) and calculates cumulative returns."""
@@ -91,12 +122,14 @@ def get_benchmark_returns(benchmark_symbol='^GSPC', start_date=None, end_date=No
         end_date = datetime.now().strftime('%Y-%m-%d')
         
     try:
-        data = yf.download(benchmark_symbol, start=start_date, end=end_date, interval="1d")
+        data = fetch_data_cached(benchmark_symbol, start_date, end_date)
         
-        if data.empty or 'Adj Close' not in data.columns:
+        if data is None or data.empty or ('Adj Close' not in data.columns and 'Close' not in data.columns):
             return pd.DataFrame()
 
-        benchmark_prices = data['Adj Close']
+        benchmark_prices = data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
+        if isinstance(benchmark_prices, pd.DataFrame):
+            benchmark_prices = benchmark_prices.squeeze()
         
         benchmark_daily_returns = benchmark_prices.pct_change().dropna()
         benchmark_cumulative_growth = (1 + benchmark_daily_returns).cumprod()
@@ -111,5 +144,5 @@ def get_benchmark_returns(benchmark_symbol='^GSPC', start_date=None, end_date=No
         return benchmark_df
 
     except Exception as e:
-        print(f"Error fetching benchmark data for {benchmark_symbol}: {e}")
+        logging.warning(f"Error fetching benchmark data for {benchmark_symbol}: {e}")
         return pd.DataFrame()
