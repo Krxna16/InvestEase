@@ -383,6 +383,26 @@ def fetch_and_calculate_portfolio(holdings_df_json):
     
     # 3. Fetch historical prices (INCLUDING BENCHMARK)
     historical_df = dfetch.get_historical_prices(symbols, start_date, end_date, include_benchmark=True)
+    
+    # Safe check if fetching failed entirely
+    if historical_df is None or historical_df.empty:
+        print("DEBUG [Data Fetch]: historical_df is None or empty.")
+        return pd.DataFrame(), {}, pd.DataFrame(), {}, pd.DataFrame(), {}
+        
+    # Handle partial failures (filter out stocks with no data)
+    valid_cols = historical_df.dropna(axis=1, how='all').columns
+    excluded_symbols = [sym for sym in symbols if sym not in valid_cols and sym != '^GSPC']
+    
+    if excluded_symbols:
+        print(f"DEBUG [Data Fetch]: Excluded symbols due to missing data: {excluded_symbols}")
+        st.warning("Some stocks could not be fetched and were excluded")
+        historical_df = historical_df[valid_cols]
+        symbols = [sym for sym in symbols if sym not in excluded_symbols]
+        
+    if not symbols:  # If all selected stock symbols failed
+        print("DEBUG [Data Fetch]: All stock symbols failed to fetch.")
+        return pd.DataFrame(), {}, pd.DataFrame(), {}, pd.DataFrame(), {}
+        
     benchmark_df = dfetch.get_benchmark_returns('^GSPC', start_date, end_date)
     
     # 4. Calculate Beta
@@ -619,12 +639,12 @@ def page_prediction():
 
     perf_df, summary, cumulative_growth_df, metrics, benchmark_df, _ = fetch_and_calculate_portfolio(holdings_df.to_json())
     
-    if cumulative_growth_df.empty:
-        st.error("Cannot perform prediction. Historical data is completely missing.")
+    if cumulative_growth_df is None or cumulative_growth_df.empty:
+        st.error("No historical data found. Please verify your stock symbols (e.g., use RELIANCE.NS for Indian stocks).")
         return
         
     if len(cumulative_growth_df) < 20:
-        st.warning("⚠️ Very small dataset detected. Prediction requires more historical data to generate reliable structural trends.")
+        st.warning("Not enough historical data to generate prediction")
         return
         
     if len(cumulative_growth_df) < 60:
